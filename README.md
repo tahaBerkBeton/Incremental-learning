@@ -7,6 +7,6 @@ Task 2: 82.94%
 Task 3: 75.74%
 Task 4: 75.84%
 
-obrained with MOE_3.py
+obrained with MOE_3.py (a Mixture of experts implementation, with a different feature extractor/expert architecture)
 
 
