@@ -240,13 +240,60 @@ Key hyperparameters:
 - Alignment strength: 0.1
 - Buffer weight: 2.0
 
-Loss function components:
+### Loss Function Components and Justification
+
+The loss function is carefully designed to balance learning new tasks while preserving knowledge of previous tasks:
+
 ```python
 total_loss = (classification_loss_new +
               buffer_weight * classification_loss_buf +
               alignment_strength * (routing_loss_new + routing_loss_buf))
 ```
 
+#### Component Justification
+
+1. **Classification Loss for New Task** (`classification_loss_new`)
+   - Standard cross-entropy loss that ensures the model learns to classify samples from the current task
+   - Base component with weight 1.0 as the primary learning objective
+
+2. **Buffer Classification Loss** (`classification_loss_buf` with weight 2.0)
+   - Cross-entropy loss applied to memory buffer samples from previous tasks
+   - **Weight = 2.0**: This higher weight emphasizes retaining previously learned knowledge
+   - Directly combats catastrophic forgetting by forcing the model to maintain performance on past examples
+   - The 2.0 weighting was empirically determined to provide optimal balance between stability (preserving old knowledge) and plasticity (acquiring new knowledge)
+   - Lower weights (e.g., 1.0) led to more forgetting, while higher weights (e.g., 3.0+) hindered the learning of new tasks
+
+3. **Routing Alignment Loss** (`routing_loss_new + routing_loss_buf` with weight 0.1)
+   - Cross-entropy loss that trains the router to correctly select the appropriate expert for each sample
+   - **Weight = 0.1**: This lower weight ensures routing learning occurs without dominating the classification objectives
+   - This component is crucial for the MoE architecture as it ensures:
+     - New samples are routed to the appropriate task-specific expert
+     - Previously learned routing paths are maintained for old task samples
+     - The modular structure of knowledge is preserved across incremental learning
+
+#### How This Loss Function Mitigates Catastrophic Forgetting
+
+The loss function addresses catastrophic forgetting through multiple mechanisms:
+
+1. **Knowledge Preservation via Replay**
+   - The weighted buffer loss ensures the model maintains performance on a subset of previous tasks
+   - The increased weight (2.0) compensates for the smaller representation of past tasks in the training batches
+
+2. **Task Separation via Expert Specialization**
+   - The routing loss (0.1) maintains clear boundaries between task-specific experts
+   - This separation prevents interference between tasks that would lead to forgetting
+
+3. **Balanced Optimization**
+   - The carefully tuned weight ratio (1.0 : 2.0 : 0.1) creates an optimal balance between:
+     - Learning new task information
+     - Preserving previous task knowledge
+     - Maintaining proper task routing
+
+4. **Architectural Protection**
+   - Beyond the loss function, the freezing of the feature extractor after the first task preserves the foundational representations
+   - The frozen previous experts act as knowledge preservation mechanisms, with their weights protected from catastrophic interference
+
+The combination of these mechanisms creates a system that effectively mitigates catastrophic forgetting while maintaining the ability to learn new information incrementally.
 ## 🔮 Future Work
 
 - 🧪 Experiment with different router mechanisms that improve expert selection
